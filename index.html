@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Plantilla con Foto y Texto</title>
+<style>
+  body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: #f0f0f0;
+    margin: 0;
+    font-family: sans-serif;
+    padding: 20px;
+  }
+  .contenedor {
+    position: relative;
+    width: 900px;
+    height: 900px;
+    border: 2px dashed #ccc;
+    transition: all 0.3s;
+  }
+  .contenedor.highlight {
+    border-color: #ff0066;
+    background: rgba(255, 0, 102, 0.1);
+  }
+  #preview {
+  position: absolute;
+  top: 51.5%;
+  left: 50%;
+  width: 50%;
+  height: 50%;
+  object-fit: cover;       /* Mantiene la proporción y cubre el área */
+  object-position: top;    /* Alinea la foto desde la parte superior */
+  transform: translate(-50%, -50%);
+  z-index: 0;
+  border-radius: 50%;
+}
+  .marco {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+    pointer-events: none;
+  }
+  #nombre {
+    position: absolute;
+    top: 83%;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 2;
+    padding: 10px;
+    font-size: 25px;
+    border: 2px solid #aaa;
+    border-radius: 6px;
+    text-align: center;
+    background: rgba(255, 255, 255, 0.9);
+    width: 80%;
+    max-width: 500px;
+  }
+  #descargar, #subir-foto {
+    margin-top: 20px;
+    padding: 10px 20px;
+    font-size: 16px;
+    cursor: pointer;
+    background: #ff0066;
+    color: white;
+    border: none;
+    border-radius: 4px;
+  }
+  #descargar:hover, #subir-foto:hover {
+    background: #cc0052;
+  }
+  .botones {
+    display: flex;
+    gap: 10px;
+  }
+</style>
+</head>
+<body>
+
+<div class="contenedor" id="drop-area"><img src="" alt="Imagen" id="preview">
+  <img src="Plantilla-bienvenidos.png" alt="Marco" class="marco">
+  <div id="texto-vivo"></div>
+</div>
+<input type="text" id="nombre" placeholder="Escribe tu nombre">
+<input type="file" id="file-input" accept="image/*" style="display: none;">
+
+<div class="botones">
+  <button id="subir-foto">Subir Foto</button>
+  <button id="descargar">Descargar Imagen</button>
+</div>
+
+<script>
+  const dropArea = document.getElementById('drop-area');
+  const preview = document.getElementById('preview');
+  const nombreInput = document.getElementById('nombre');
+  const textoVivo = document.getElementById('texto-vivo');
+  const botonDescargar = document.getElementById('descargar');
+  const botonSubir = document.getElementById('subir-foto');
+  const fileInput = document.getElementById('file-input');
+
+  const marcoImg = new Image();
+  marcoImg.src = "Plantilla-bienvenidos.png";
+
+  // Texto en vivo
+  nombreInput.addEventListener('input', () => {
+    textoVivo.textContent = nombreInput.value;
+  });
+
+  // Subir foto (botón)
+  botonSubir.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file && file.type.startsWith('image/')) {
+      preview.src = URL.createObjectURL(file);
+    }
+  });
+
+  // Drag & drop
+  dropArea.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropArea.classList.add('highlight');
+  });
+
+  dropArea.addEventListener('dragleave', () => {
+    dropArea.classList.remove('highlight');
+  });
+
+  dropArea.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropArea.classList.remove('highlight');
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('image/')) {
+      preview.src = URL.createObjectURL(file);
+    }
+  });
+
+  // Descargar imagen
+  botonDescargar.addEventListener('click', async () => {
+  const canvas = document.createElement('canvas');
+  canvas.width = 900;
+  canvas.height = 900;
+  const ctx = canvas.getContext('2d');
+
+  try {
+    // Fondo blanco (opcional)
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    if (preview.src) {
+      const foto = new Image();
+      foto.src = preview.src;
+      await new Promise((resolve) => {
+        foto.onload = resolve;
+        foto.onerror = resolve;
+      });
+
+      const fotoSize = 0.6 * canvas.width;
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(canvas.width / 2, canvas.height / 2, fotoSize / 2, 0, Math.PI * 2);
+      ctx.clip();
+
+      // Dibuja la foto alineada desde la parte superior
+      const aspectRatio = foto.width / foto.height;
+      let sourceY = 0;
+      let sourceHeight = foto.height;
+
+      if (aspectRatio < 1) {
+        sourceHeight = foto.width; // Ajusta esto según cuánto quieras recortar
+      }
+
+      ctx.drawImage(
+        foto,
+        0, sourceY, foto.width, sourceHeight,
+        canvas.width / 2 - fotoSize / 2, canvas.height / 2 - fotoSize / 2,
+        fotoSize, fotoSize
+      );
+
+      ctx.restore();
+    }
+
+    // Resto del código (marco y texto) sigue igual...
+    ctx.drawImage(marcoImg, 0, 0, canvas.width, canvas.height);
+    ctx.font = "bold 40px sans-serif";
+    ctx.fillStyle = "#000";
+    ctx.textAlign = "center";
+    ctx.fillText(nombreInput.value || "", canvas.width / 2, canvas.height * 0.85);
+
+    const link = document.createElement('a');
+    link.download = `bienvenida-${nombreInput.value || 'anonimo'}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+
+  } catch (error) {
+    console.error("Error:", error);
+    alert("Error al generar la imagen.");
+  }
+});
+</script>
+</body>
+</html>
